@@ -35,10 +35,9 @@ export default function Overview() {
   );
 }
 
+// Spec: 1→full, 2→2col, 3-4→2×2, 5-6→3×2, 7-9→3×3
 function getGridCols(count: number): string {
   if (count <= 1) return "grid-cols-1";
-  if (count <= 2) return "grid-cols-2";
   if (count <= 4) return "grid-cols-2";
-  if (count <= 6) return "grid-cols-3";
   return "grid-cols-3";
 }

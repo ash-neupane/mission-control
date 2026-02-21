@@ -1,3 +1,4 @@
+use std::sync::{Mutex, MutexGuard};
 use tauri::{AppHandle, State};
 
 use crate::git;
@@ -6,6 +7,13 @@ use crate::projects::{Config, ConfigState, ProjectRegistryState, RegisteredProje
 use crate::pty::PtyPoolState;
 use crate::session::{AgentType, Session, SessionManagerState, SessionStatus};
 use crate::status::unix_timestamp;
+
+/// Acquire a mutex lock, returning a user-facing error on poison.
+fn lock_or_err<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, String> {
+    mutex
+        .lock()
+        .map_err(|_| "Internal error: lock poisoned".to_string())
+}
 
 #[tauri::command]
 pub fn create_session(
@@ -18,24 +26,17 @@ pub fn create_session(
     agent: String,
     branch_name: Option<String>,
 ) -> Result<Session, String> {
-    let mut manager = session_manager
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut manager = lock_or_err(&session_manager.0)?;
 
     let number = manager
         .next_available_number()
         .ok_or("Maximum sessions (9) reached")?;
 
-    let cfg = config
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let cfg = lock_or_err(&config.0)?;
 
     let agent_type = match agent.to_lowercase().as_str() {
         "claude" => AgentType::Claude,
         "codex" => AgentType::Codex,
-        "shell" => AgentType::Shell,
         _ => AgentType::Shell,
     };
 
@@ -52,7 +53,6 @@ pub fn create_session(
             Ok(b) => Some(b),
             Err(e) => {
                 log::warn!("Failed to create branch: {}", e);
-                // Continue without branch creation
                 None
             }
         }
@@ -60,10 +60,10 @@ pub fn create_session(
         branch_name
     };
 
-    // Determine session name
+    // Determine session name — pass branch_prefix so naming can strip it
     let name = branch
         .as_deref()
-        .and_then(naming::name_from_branch)
+        .and_then(|b| naming::name_from_branch(b, &cfg.branch_prefix))
         .unwrap_or_else(|| naming::fallback_name(&project_name, number));
 
     let session_id = uuid::Uuid::new_v4().to_string();
@@ -90,10 +90,7 @@ pub fn create_session(
     let command = command.to_string();
     let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
 
-    let mut pool = pty_pool
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut pool = lock_or_err(&pty_pool.0)?;
 
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     pool.spawn(
@@ -106,7 +103,7 @@ pub fn create_session(
 
     manager.add_session(session.clone());
 
-    // Update project registry
+    // Update project registry (best-effort)
     if let Ok(mut registry) = project_registry.0.lock() {
         registry.touch_project(&project_path);
     }
@@ -120,34 +117,30 @@ pub fn kill_session(
     pty_pool: State<PtyPoolState>,
     session_id: String,
 ) -> Result<(), String> {
-    let mut pool = pty_pool
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut pool = lock_or_err(&pty_pool.0)?;
     pool.kill(&session_id)?;
 
-    let mut manager = session_manager
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut manager = lock_or_err(&session_manager.0)?;
     manager.remove_session(&session_id);
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn list_sessions(session_manager: State<SessionManagerState>) -> Vec<Session> {
-    let manager = session_manager.0.lock().unwrap();
-    manager.list_sessions()
+pub fn list_sessions(
+    session_manager: State<SessionManagerState>,
+) -> Result<Vec<Session>, String> {
+    let manager = lock_or_err(&session_manager.0)?;
+    Ok(manager.list_sessions())
 }
 
 #[tauri::command]
 pub fn get_session(
     session_manager: State<SessionManagerState>,
     session_id: String,
-) -> Option<Session> {
-    let manager = session_manager.0.lock().unwrap();
-    manager.get_session(&session_id).cloned()
+) -> Result<Option<Session>, String> {
+    let manager = lock_or_err(&session_manager.0)?;
+    Ok(manager.get_session(&session_id).cloned())
 }
 
 #[tauri::command]
@@ -156,10 +149,7 @@ pub fn write_to_pty(
     session_id: String,
     data: Vec<u8>,
 ) -> Result<(), String> {
-    let pool = pty_pool
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let pool = lock_or_err(&pty_pool.0)?;
     pool.write(&session_id, &data)
 }
 
@@ -170,17 +160,16 @@ pub fn resize_pty(
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
-    let pool = pty_pool
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let pool = lock_or_err(&pty_pool.0)?;
     pool.resize(&session_id, cols, rows)
 }
 
 #[tauri::command]
-pub fn list_projects(project_registry: State<ProjectRegistryState>) -> Vec<RegisteredProject> {
-    let registry = project_registry.0.lock().unwrap();
-    registry.sorted_projects()
+pub fn list_projects(
+    project_registry: State<ProjectRegistryState>,
+) -> Result<Vec<RegisteredProject>, String> {
+    let registry = lock_or_err(&project_registry.0)?;
+    Ok(registry.sorted_projects())
 }
 
 #[tauri::command]
@@ -188,10 +177,7 @@ pub fn add_project(
     project_registry: State<ProjectRegistryState>,
     path: String,
 ) -> Result<RegisteredProject, String> {
-    let mut registry = project_registry
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut registry = lock_or_err(&project_registry.0)?;
     registry.add_project(&path)
 }
 
@@ -200,10 +186,7 @@ pub fn remove_project(
     project_registry: State<ProjectRegistryState>,
     path: String,
 ) -> Result<(), String> {
-    let mut registry = project_registry
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut registry = lock_or_err(&project_registry.0)?;
     registry.remove_project(&path)
 }
 
@@ -218,16 +201,14 @@ pub fn get_current_branch(project_path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-pub fn get_config(config: State<ConfigState>) -> Config {
-    config.0.lock().unwrap().clone()
+pub fn get_config(config: State<ConfigState>) -> Result<Config, String> {
+    let cfg = lock_or_err(&config.0)?;
+    Ok(cfg.clone())
 }
 
 #[tauri::command]
 pub fn update_config(config: State<ConfigState>, new_config: Config) -> Result<(), String> {
-    let mut cfg = config
-        .0
-        .lock()
-        .map_err(|e| format!("Lock error: {}", e))?;
+    let mut cfg = lock_or_err(&config.0)?;
     new_config.save()?;
     *cfg = new_config;
     Ok(())

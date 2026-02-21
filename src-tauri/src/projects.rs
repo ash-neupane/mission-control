@@ -6,6 +6,14 @@ use std::sync::Mutex;
 use crate::session::AgentType;
 use crate::status::unix_timestamp;
 
+/// Returns the ~/.cmux/ directory, creating it if necessary.
+fn cmux_dir() -> PathBuf {
+    let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
+    path.push(".cmux");
+    fs::create_dir_all(&path).ok();
+    path
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisteredProject {
     pub path: String,
@@ -28,11 +36,7 @@ impl Default for ProjectRegistry {
 
 impl ProjectRegistry {
     fn config_path() -> PathBuf {
-        let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        path.push(".cmux");
-        fs::create_dir_all(&path).ok();
-        path.push("projects.json");
-        path
+        cmux_dir().join("projects.json")
     }
 
     pub fn load() -> Self {
@@ -137,11 +141,7 @@ impl Default for Config {
 
 impl Config {
     fn config_path() -> PathBuf {
-        let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
-        path.push(".cmux");
-        fs::create_dir_all(&path).ok();
-        path.push("config.json");
-        path
+        cmux_dir().join("config.json")
     }
 
     pub fn load() -> Self {

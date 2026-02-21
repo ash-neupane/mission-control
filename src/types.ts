@@ -48,6 +48,7 @@ export interface StatusChangeEvent {
   session_id: string;
   new_status: SessionStatus;
   name: string | null;
+  needs_attention_since: number | null;
 }
 
 export interface PrDetectedEvent {

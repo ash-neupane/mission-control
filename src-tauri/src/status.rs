@@ -1,15 +1,29 @@
 use regex::Regex;
 use serde::Serialize;
+use std::sync::LazyLock;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 
 use crate::session::SessionStatus;
+
+// --- Constants for status detection thresholds ---
+const BUFFER_MAX_CHARS: usize = 2000;
+const AUTO_NAME_THRESHOLD: usize = 2000;
+const SIGNIFICANT_OUTPUT_BYTES: usize = 500;
+const MIN_OUTPUT_BYTES: usize = 100;
+const STUCK_TIMEOUT_SECS: u64 = 180;
+
+/// Precompiled regex for stripping ANSI escape codes (hot path).
+static ANSI_RE: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07|\x1b\[.*?[mGKHJP]").unwrap()
+});
 
 #[derive(Debug, Clone, Serialize)]
 pub struct StatusChangeEvent {
     pub session_id: String,
     pub new_status: SessionStatus,
     pub name: Option<String>,
+    pub needs_attention_since: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -22,11 +36,11 @@ pub struct StatusDetector {
     session_id: String,
     current_status: SessionStatus,
     last_output_time: Instant,
-    _last_unique_output: String,
     output_buffer: String,
     auto_name: Option<String>,
     name_locked: bool,
     pr_url: Option<String>,
+    needs_attention_since: Option<u64>,
     pr_regex: Regex,
     prompt_regex: Regex,
     allow_deny_regex: Regex,
@@ -39,11 +53,11 @@ impl StatusDetector {
             session_id,
             current_status: SessionStatus::Empty,
             last_output_time: Instant::now(),
-            _last_unique_output: String::new(),
             output_buffer: String::new(),
             auto_name: None,
             name_locked: false,
             pr_url: None,
+            needs_attention_since: None,
             pr_regex: Regex::new(r"https://github\.com/[a-zA-Z0-9_.-]+/[a-zA-Z0-9_.-]+/pull/\d+")
                 .unwrap(),
             prompt_regex: Regex::new(r"[❯>]\s*$").unwrap(),
@@ -57,14 +71,13 @@ impl StatusDetector {
         self.output_buffer.push_str(&text);
         self.total_output_bytes += data.len();
 
-        // Trim buffer to last 2000 chars
-        if self.output_buffer.len() > 2000 {
-            let start = self.output_buffer.len() - 2000;
+        // Trim buffer to keep memory bounded
+        if self.output_buffer.len() > BUFFER_MAX_CHARS {
+            let start = self.output_buffer.len() - BUFFER_MAX_CHARS;
             self.output_buffer = self.output_buffer[start..].to_string();
         }
 
-        let now = Instant::now();
-        self.last_output_time = now;
+        self.last_output_time = Instant::now();
 
         // Strip ANSI escape codes for pattern matching
         let clean_text = strip_ansi(&self.output_buffer);
@@ -91,8 +104,8 @@ impl StatusDetector {
             self.transition(new_status, app_handle);
         }
 
-        // Auto-naming (only on first ~500 bytes of non-boilerplate output)
-        if !self.name_locked && self.total_output_bytes < 2000 {
+        // Auto-naming (only on early output)
+        if !self.name_locked && self.total_output_bytes < AUTO_NAME_THRESHOLD {
             self.try_auto_name(&clean_text, app_handle);
         }
     }
@@ -115,9 +128,7 @@ impl StatusDetector {
 
         // Check for Claude Code idle prompt (❯ or >) at end of output
         if self.prompt_regex.is_match(&last_lines) {
-            // If we had significant prior output, this is either Done or NeedsInput
-            if self.total_output_bytes > 500 {
-                // Check if last output contained completion signals
+            if self.total_output_bytes > SIGNIFICANT_OUTPUT_BYTES {
                 let lower = last_lines.to_lowercase();
                 if lower.contains("created pr")
                     || lower.contains("all tests pass")
@@ -127,17 +138,13 @@ impl StatusDetector {
                 {
                     return SessionStatus::Done;
                 }
-                // Check for question marks indicating the agent is asking
-                if last_lines.contains('?') {
-                    return SessionStatus::NeedsInput;
-                }
                 return SessionStatus::NeedsInput;
             }
             return SessionStatus::Empty;
         }
 
         // If we're receiving output, we're working
-        if self.total_output_bytes > 100 {
+        if self.total_output_bytes > MIN_OUTPUT_BYTES {
             return SessionStatus::Working;
         }
 
@@ -154,8 +161,13 @@ impl StatusDetector {
 
         self.current_status = new_status.clone();
 
+        // Track when the session started needing attention (backend is source of truth)
         if new_status == SessionStatus::NeedsInput || new_status == SessionStatus::Stuck {
-            // Set needs_attention_since timestamp
+            if self.needs_attention_since.is_none() {
+                self.needs_attention_since = Some(unix_timestamp());
+            }
+        } else {
+            self.needs_attention_since = None;
         }
 
         let _ = app_handle.emit(
@@ -164,23 +176,20 @@ impl StatusDetector {
                 session_id: self.session_id.clone(),
                 new_status,
                 name: self.auto_name.clone(),
+                needs_attention_since: self.needs_attention_since,
             },
         );
     }
 
     fn try_auto_name(&mut self, clean_text: &str, app_handle: &AppHandle) {
-        // Try to extract a meaningful name from agent output
-        let lines: Vec<&str> = clean_text.lines().collect();
-
-        for line in &lines {
+        for line in clean_text.lines() {
             let line = line.trim();
-            // Skip short lines and boilerplate
             if line.len() < 10 || line.starts_with('$') || line.starts_with("claude") {
                 continue;
             }
 
-            // Look for "I'll help you..." or "I'll..." patterns
-            if line.contains("I'll help you") || line.contains("I'll ") || line.contains("Let me ") {
+            if line.contains("I'll help you") || line.contains("I'll ") || line.contains("Let me ")
+            {
                 if let Some(name) = extract_slug(line) {
                     self.auto_name = Some(name.clone());
                     self.name_locked = true;
@@ -190,6 +199,7 @@ impl StatusDetector {
                             session_id: self.session_id.clone(),
                             new_status: self.current_status.clone(),
                             name: Some(name),
+                            needs_attention_since: self.needs_attention_since,
                         },
                     );
                     return;
@@ -198,11 +208,10 @@ impl StatusDetector {
         }
     }
 
-    /// Check for stuck status (called periodically)
+    /// Check for stuck status (called periodically from background thread)
     pub fn check_stuck(&mut self, app_handle: &AppHandle) {
         if self.current_status == SessionStatus::Working {
-            let elapsed = self.last_output_time.elapsed();
-            if elapsed > Duration::from_secs(180) {
+            if self.last_output_time.elapsed() > Duration::from_secs(STUCK_TIMEOUT_SECS) {
                 self.transition(SessionStatus::Stuck, app_handle);
             }
         }
@@ -221,21 +230,18 @@ impl StatusDetector {
     }
 }
 
-/// Strip ANSI escape codes from text
+/// Strip ANSI escape codes from text (uses cached regex).
 fn strip_ansi(text: &str) -> String {
-    let re = Regex::new(r"\x1b\[[0-9;]*[a-zA-Z]|\x1b\].*?\x07|\x1b\[.*?[mGKHJP]").unwrap();
-    re.replace_all(text, "").to_string()
+    ANSI_RE.replace_all(text, "").to_string()
 }
 
-/// Extract a short slug from a description
+/// Extract a short slug from a description.
 fn extract_slug(text: &str) -> Option<String> {
-    // Remove common prefixes
     let text = text
         .replace("I'll help you ", "")
         .replace("I'll ", "")
         .replace("Let me ", "");
 
-    // Take first 4-5 meaningful words
     let words: Vec<&str> = text
         .split_whitespace()
         .filter(|w| w.len() > 2)
@@ -246,18 +252,17 @@ fn extract_slug(text: &str) -> Option<String> {
         return None;
     }
 
-    let slug = words
+    let slug: String = words
         .join("-")
         .to_lowercase()
         .chars()
         .filter(|c| c.is_alphanumeric() || *c == '-')
-        .collect::<String>();
+        .collect();
 
     if slug.len() < 3 {
         return None;
     }
 
-    // Truncate to 30 chars
     Some(slug.chars().take(30).collect())
 }
 
@@ -289,7 +294,7 @@ mod tests {
             extract_slug("Let me fix the authentication bug"),
             Some("fix-the-authentication-bug".to_string())
         );
-        assert_eq!(extract_slug("hi"), None); // too short
+        assert_eq!(extract_slug("hi"), None);
     }
 
     #[test]
@@ -303,7 +308,7 @@ mod tests {
     #[test]
     fn test_unix_timestamp() {
         let ts = unix_timestamp();
-        assert!(ts > 1700000000); // after 2023
+        assert!(ts > 1700000000);
     }
 
     #[test]

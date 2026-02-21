@@ -31,6 +31,7 @@ export default function NewSessionModal() {
   const searchRef = useRef<HTMLInputElement>(null);
   const branchRef = useRef<HTMLInputElement>(null);
   const newProjectRef = useRef<HTMLInputElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   // Load projects
   useEffect(() => {
@@ -51,10 +52,12 @@ export default function NewSessionModal() {
     }
   }, [showNewSessionModal]);
 
-  // Focus search input
+  // Focus appropriate element based on step
   useEffect(() => {
     if (showNewSessionModal && step === "select-project") {
       setTimeout(() => searchRef.current?.focus(), 50);
+    } else if (showNewSessionModal && step === "confirm") {
+      setTimeout(() => overlayRef.current?.focus(), 50);
     }
   }, [showNewSessionModal, step]);
 
@@ -191,8 +194,10 @@ export default function NewSessionModal() {
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 outline-none"
       onKeyDown={handleKeyDown}
+      tabIndex={-1}
+      ref={overlayRef}
     >
       <div className="bg-cmux-surface border border-cmux-border rounded-lg w-[400px] max-h-[500px] overflow-hidden shadow-2xl">
         {step === "select-project" && (

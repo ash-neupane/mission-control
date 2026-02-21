@@ -37,7 +37,8 @@ interface AppState {
   updateSessionStatus: (
     sessionId: string,
     status: SessionStatus,
-    name?: string | null
+    name?: string | null,
+    needsAttentionSince?: number | null
   ) => void;
   updateSessionPrUrl: (sessionId: string, url: string) => void;
 
@@ -116,7 +117,7 @@ export const useStore = create<AppState>((set, get) => ({
       sessions: s.sessions.filter((sess) => sess.id !== sessionId),
     })),
 
-  updateSessionStatus: (sessionId, status, name) =>
+  updateSessionStatus: (sessionId, status, name, needsAttentionSince) =>
     set((s) => ({
       sessions: sortSessions(
         s.sessions.map((sess) => {
@@ -125,10 +126,7 @@ export const useStore = create<AppState>((set, get) => ({
             ...sess,
             status,
             name: name ?? sess.name,
-            needs_attention_since:
-              status === "NeedsInput" || status === "Stuck"
-                ? sess.needs_attention_since ?? Date.now() / 1000
-                : null,
+            needs_attention_since: needsAttentionSince ?? null,
           };
         })
       ),

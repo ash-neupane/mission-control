@@ -8,6 +8,9 @@ use tauri::{AppHandle, Emitter};
 
 use crate::status::StatusDetector;
 
+const PTY_READ_BUF_SIZE: usize = 4096;
+const PTY_BATCH_INTERVAL_MS: u64 = 16;
+
 /// Holds all active PTY master handles and their reader threads
 pub struct PtyPool {
     pub masters: HashMap<String, Arc<Mutex<Box<dyn MasterPty + Send>>>>,
@@ -91,8 +94,8 @@ impl PtyPool {
                 }
             };
 
-            let mut buf = [0u8; 4096];
-            let mut batch_buf: Vec<u8> = Vec::with_capacity(8192);
+            let mut buf = [0u8; PTY_READ_BUF_SIZE];
+            let mut batch_buf: Vec<u8> = Vec::with_capacity(PTY_READ_BUF_SIZE * 2);
             let mut last_flush = std::time::Instant::now();
 
             loop {
@@ -116,9 +119,11 @@ impl PtyPool {
                             det.feed(data, &app_handle);
                         }
 
-                        // Batch: flush every 16ms or when buffer is large
+                        // Batch: flush at frame interval or when buffer is large
                         let elapsed = last_flush.elapsed();
-                        if elapsed >= Duration::from_millis(16) || batch_buf.len() > 4096 {
+                        if elapsed >= Duration::from_millis(PTY_BATCH_INTERVAL_MS)
+                            || batch_buf.len() > PTY_READ_BUF_SIZE
+                        {
                             let _ = app_handle.emit(
                                 &format!("pty-output-{}", sid),
                                 batch_buf.clone(),

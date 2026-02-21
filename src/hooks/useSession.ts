@@ -22,7 +22,10 @@ export function useSessionInit() {
   } = useStore();
 
   useEffect(() => {
-    // Load initial data
+    let cancelled = false;
+    let unlistenStatus: (() => void) | null = null;
+    let unlistenPr: (() => void) | null = null;
+
     const init = async () => {
       try {
         const [sessions, projects, config] = await Promise.all([
@@ -30,37 +33,48 @@ export function useSessionInit() {
           listProjects(),
           getConfig(),
         ]);
+        if (cancelled) return;
         setSessions(sessions);
         setProjects(projects);
         setConfig(config);
       } catch (err) {
         console.error("Failed to load initial data:", err);
       }
+
+      // Subscribe to events after initial load
+      if (cancelled) return;
+
+      unlistenStatus = await onStatusChanged((event) => {
+        if (cancelled) return;
+        updateSessionStatus(
+          event.session_id,
+          event.new_status,
+          event.name,
+          event.needs_attention_since
+        );
+      });
+
+      if (cancelled) {
+        unlistenStatus();
+        unlistenStatus = null;
+        return;
+      }
+
+      unlistenPr = await onPrDetected((event) => {
+        if (cancelled) return;
+        updateSessionPrUrl(event.session_id, event.url);
+      });
+
+      if (cancelled) {
+        unlistenPr();
+        unlistenPr = null;
+      }
     };
 
     init();
 
-    // Subscribe to status changes
-    let unlistenStatus: (() => void) | null = null;
-    let unlistenPr: (() => void) | null = null;
-
-    const setupListeners = async () => {
-      unlistenStatus = await onStatusChanged((event) => {
-        updateSessionStatus(
-          event.session_id,
-          event.new_status,
-          event.name
-        );
-      });
-
-      unlistenPr = await onPrDetected((event) => {
-        updateSessionPrUrl(event.session_id, event.url);
-      });
-    };
-
-    setupListeners();
-
     return () => {
+      cancelled = true;
       unlistenStatus?.();
       unlistenPr?.();
     };
