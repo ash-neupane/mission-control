@@ -15,8 +15,9 @@ pub fn should_notify(old_status: &SessionStatus, new_status: &SessionStatus) -> 
 
 /// Format notification body text
 pub fn notification_body(session_name: &str, last_output: &str) -> String {
-    let truncated = if last_output.len() > 80 {
-        format!("{}...", &last_output[..77])
+    let truncated = if last_output.chars().count() > 80 {
+        let s: String = last_output.chars().take(77).collect();
+        format!("{}...", s)
     } else {
         last_output.to_string()
     };
@@ -58,8 +59,15 @@ mod tests {
 
         let long_output = "x".repeat(100);
         let truncated = notification_body("test", &long_output);
-        assert!(truncated.len() < 100);
         assert!(truncated.ends_with("..."));
+    }
+
+    #[test]
+    fn test_notification_body_multibyte_utf8() {
+        // 30 emoji = 30 chars but 120 bytes — must not panic
+        let emoji_output = "\u{1F680}".repeat(90);
+        let result = notification_body("test", &emoji_output);
+        assert!(result.ends_with("..."));
     }
 
     #[test]

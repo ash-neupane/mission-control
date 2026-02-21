@@ -71,9 +71,12 @@ impl StatusDetector {
         self.output_buffer.push_str(&text);
         self.total_output_bytes += data.len();
 
-        // Trim buffer to keep memory bounded
+        // Trim buffer to keep memory bounded (advance to valid char boundary)
         if self.output_buffer.len() > BUFFER_MAX_CHARS {
-            let start = self.output_buffer.len() - BUFFER_MAX_CHARS;
+            let mut start = self.output_buffer.len() - BUFFER_MAX_CHARS;
+            while !self.output_buffer.is_char_boundary(start) && start < self.output_buffer.len() {
+                start += 1;
+            }
             self.output_buffer = self.output_buffer[start..].to_string();
         }
 

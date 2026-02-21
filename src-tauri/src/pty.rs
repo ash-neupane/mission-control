@@ -90,7 +90,13 @@ impl PtyPool {
 
         thread::spawn(move || {
             let mut reader = {
-                let master_lock = reader_master.lock().unwrap();
+                let master_lock = match reader_master.lock() {
+                    Ok(l) => l,
+                    Err(e) => {
+                        log::error!("PTY master lock poisoned for {}: {}", sid, e);
+                        return;
+                    }
+                };
                 match master_lock.try_clone_reader() {
                     Ok(r) => r,
                     Err(e) => {
@@ -107,11 +113,11 @@ impl PtyPool {
             loop {
                 match reader.read(&mut buf) {
                     Ok(0) => {
-                        // PTY closed
+                        // PTY closed — flush remaining
                         if !batch_buf.is_empty() {
                             let _ = app_handle.emit(
                                 &format!("pty-output-{}", sid),
-                                batch_buf.clone(),
+                                std::mem::take(&mut batch_buf),
                             );
                         }
                         break;
@@ -132,9 +138,8 @@ impl PtyPool {
                         {
                             let _ = app_handle.emit(
                                 &format!("pty-output-{}", sid),
-                                batch_buf.clone(),
+                                std::mem::take(&mut batch_buf),
                             );
-                            batch_buf.clear();
                             last_flush = std::time::Instant::now();
                         }
                     }
