@@ -16,6 +16,7 @@ fn lock_or_err<T>(mutex: &Mutex<T>) -> Result<MutexGuard<'_, T>, String> {
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub fn create_session(
     app_handle: AppHandle,
     session_manager: State<SessionManagerState>,

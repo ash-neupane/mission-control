@@ -1,6 +1,5 @@
 import { useStore } from "../store";
 import SessionPill from "./SessionPill";
-import type { Session } from "../types";
 
 export default function TitleBar() {
   const {

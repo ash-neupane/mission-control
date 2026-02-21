@@ -130,7 +130,7 @@ export default function Terminal({
     );
 
     return () => disposer.dispose();
-  }, [termRef.current, handleResize]);
+  }, [sessionId, handleResize]);
 
   // Focus the terminal when active
   useEffect(() => {

@@ -18,19 +18,15 @@ export const statusLabels: Record<SessionStatus, string> = {
   Stuck: "STUCK",
 };
 
+const statusBorderClasses: Record<SessionStatus, string> = {
+  Empty: "border-l-4 border-l-cmux-empty",
+  Working: "border-l-4 border-l-cmux-working",
+  NeedsInput: "border-l-4 border-l-cmux-needs-input animate-pulse_border",
+  PrReady: "border-l-4 border-l-cmux-pr-ready",
+  Done: "border-l-4 border-l-cmux-done",
+  Stuck: "border-l-4 border-l-cmux-stuck",
+};
+
 export function statusBorderClass(status: SessionStatus): string {
-  switch (status) {
-    case "Working":
-      return "border-l-4 border-l-cmux-working";
-    case "NeedsInput":
-      return "border-l-4 border-l-cmux-needs-input animate-pulse_border";
-    case "PrReady":
-      return "border-l-4 border-l-cmux-pr-ready";
-    case "Done":
-      return "border-l-4 border-l-cmux-done";
-    case "Stuck":
-      return "border-l-4 border-l-cmux-stuck";
-    default:
-      return "border-l-4 border-l-cmux-empty";
-  }
+  return statusBorderClasses[status];
 }

@@ -21,17 +21,9 @@ pub struct RegisteredProject {
     pub last_used: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ProjectRegistry {
     pub projects: Vec<RegisteredProject>,
-}
-
-impl Default for ProjectRegistry {
-    fn default() -> Self {
-        ProjectRegistry {
-            projects: Vec::new(),
-        }
-    }
 }
 
 impl ProjectRegistry {

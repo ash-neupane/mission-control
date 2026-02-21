@@ -18,6 +18,12 @@ pub struct PtyPool {
     pub status_detectors: HashMap<String, Arc<Mutex<StatusDetector>>>,
 }
 
+impl Default for PtyPool {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PtyPool {
     pub fn new() -> Self {
         PtyPool {

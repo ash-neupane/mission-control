@@ -7,8 +7,6 @@ import { openUrl } from "../lib/tauri";
  * Registers keyboard shortcuts that work across both Overview and Focus modes.
  */
 export function useHotkeys() {
-  const store = useStore();
-
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const {

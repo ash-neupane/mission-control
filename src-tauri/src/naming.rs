@@ -1,11 +1,12 @@
-/// Auto-naming logic for sessions.
-///
-/// Priority:
-/// 1. Git branch name (if not generic like cmux/session-N)
-/// 2. Agent's first substantive output
-/// 3. Fallback: {project-name}-{session-number}
+//! Auto-naming logic for sessions.
+//!
+//! Priority:
+//! 1. Git branch name (if not generic like cmux/session-N)
+//! 2. Agent's first substantive output
+//! 3. Fallback: {project-name}-{session-number}
 
 /// Derive a session name from a branch name.
+///
 /// `branch_prefix` is the configured prefix (e.g. "cmux/") so we can strip it
 /// even if the user changes it from the default.
 /// Returns None if the branch name is generic (e.g., cmux/session-3).
@@ -33,8 +34,7 @@ pub fn name_from_branch(branch: &str, branch_prefix: &str) -> Option<String> {
     }
 
     let name = stripped
-        .replace('/', "-")
-        .replace('_', "-")
+        .replace(['/', '_'], "-")
         .to_lowercase();
 
     Some(name)

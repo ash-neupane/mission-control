@@ -210,10 +210,10 @@ impl StatusDetector {
 
     /// Check for stuck status (called periodically from background thread)
     pub fn check_stuck(&mut self, app_handle: &AppHandle) {
-        if self.current_status == SessionStatus::Working {
-            if self.last_output_time.elapsed() > Duration::from_secs(STUCK_TIMEOUT_SECS) {
-                self.transition(SessionStatus::Stuck, app_handle);
-            }
+        if self.current_status == SessionStatus::Working
+            && self.last_output_time.elapsed() > Duration::from_secs(STUCK_TIMEOUT_SECS)
+        {
+            self.transition(SessionStatus::Stuck, app_handle);
         }
     }
 
