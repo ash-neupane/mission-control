@@ -91,6 +91,7 @@ impl SessionManager {
 
     pub fn add_session(&mut self, session: Session) {
         let num = session.number;
+        assert!((1..=9).contains(&num), "session number must be 1-9, got {num}");
         self.used_numbers[(num - 1) as usize] = true;
         self.sessions.insert(session.id.clone(), session);
     }
