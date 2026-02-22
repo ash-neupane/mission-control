@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { Session } from "../types";
 import { statusColors, statusLabels } from "../lib/colors";
 import { useStore } from "../store";
@@ -7,14 +8,23 @@ interface SidePanelProps {
   session: Session;
 }
 
+function useElapsedTime(startedAt: number): string {
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const elapsed = Math.max(0, now - startedAt);
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  return `${minutes}m ${seconds}s`;
+}
+
 export default function SidePanel({ session }: SidePanelProps) {
   const sessions = useStore((s) => s.sessions);
   const otherSessions = sessions.filter((s) => s.id !== session.id);
 
-  const elapsed = Math.floor(Date.now() / 1000 - session.started_at);
-  const minutes = Math.floor(elapsed / 60);
-  const seconds = elapsed % 60;
-  const timeStr = `${minutes}m ${seconds}s`;
+  const timeStr = useElapsedTime(session.started_at);
 
   const tokensStr = session.tokens_used
     ? `${(session.tokens_used / 1000).toFixed(1)}k`

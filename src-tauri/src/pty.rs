@@ -1,4 +1,4 @@
-use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
+use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::sync::{Arc, Mutex};
@@ -14,7 +14,7 @@ const PTY_BATCH_INTERVAL_MS: u64 = 16;
 /// Holds all active PTY master handles and their reader threads
 pub struct PtyPool {
     pub masters: HashMap<String, Arc<Mutex<Box<dyn MasterPty + Send>>>>,
-    pub child_pids: HashMap<String, u32>,
+    pub children: HashMap<String, Box<dyn Child + Send>>,
     pub status_detectors: HashMap<String, Arc<Mutex<StatusDetector>>>,
 }
 
@@ -28,7 +28,7 @@ impl PtyPool {
     pub fn new() -> Self {
         PtyPool {
             masters: HashMap::new(),
-            child_pids: HashMap::new(),
+            children: HashMap::new(),
             status_detectors: HashMap::new(),
         }
     }
@@ -51,7 +51,7 @@ impl PtyPool {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| format!("Failed to open PTY: {}", e))?;
+            .map_err(|e| format!("Failed to open PTY: {e}"))?;
 
         let mut cmd = CommandBuilder::new(command);
         for arg in args {
@@ -68,7 +68,7 @@ impl PtyPool {
         let child = pair
             .slave
             .spawn_command(cmd)
-            .map_err(|e| format!("Failed to spawn command: {}", e))?;
+            .map_err(|e| format!("Failed to spawn command: {e}"))?;
 
         let child_pid = child.process_id().unwrap_or(0);
 
@@ -77,7 +77,8 @@ impl PtyPool {
 
         let master = Arc::new(Mutex::new(pair.master));
         self.masters.insert(session_id.to_string(), master.clone());
-        self.child_pids.insert(session_id.to_string(), child_pid);
+        // Store the child handle so the process is reaped on drop (no zombie)
+        self.children.insert(session_id.to_string(), child);
 
         // Create status detector for this session
         let detector = Arc::new(Mutex::new(StatusDetector::new(session_id.to_string())));
@@ -93,14 +94,14 @@ impl PtyPool {
                 let master_lock = match reader_master.lock() {
                     Ok(l) => l,
                     Err(e) => {
-                        log::error!("PTY master lock poisoned for {}: {}", sid, e);
+                        log::error!("PTY master lock poisoned for {sid}: {e}");
                         return;
                     }
                 };
                 match master_lock.try_clone_reader() {
                     Ok(r) => r,
                     Err(e) => {
-                        log::error!("Failed to clone PTY reader for {}: {}", sid, e);
+                        log::error!("Failed to clone PTY reader for {sid}: {e}");
                         return;
                     }
                 }
@@ -116,7 +117,7 @@ impl PtyPool {
                         // PTY closed — flush remaining
                         if !batch_buf.is_empty() {
                             let _ = app_handle.emit(
-                                &format!("pty-output-{}", sid),
+                                &format!("pty-output-{sid}"),
                                 std::mem::take(&mut batch_buf),
                             );
                         }
@@ -137,20 +138,25 @@ impl PtyPool {
                             || batch_buf.len() > PTY_READ_BUF_SIZE
                         {
                             let _ = app_handle.emit(
-                                &format!("pty-output-{}", sid),
+                                &format!("pty-output-{sid}"),
                                 std::mem::take(&mut batch_buf),
                             );
                             last_flush = std::time::Instant::now();
                         }
                     }
                     Err(e) => {
-                        log::error!("PTY read error for {}: {}", sid, e);
+                        log::error!("PTY read error for {sid}: {e}");
                         break;
                     }
                 }
             }
 
-            log::info!("PTY reader thread ended for session {}", sid);
+            // Notify frontend that the PTY process has exited (BUG-09 fix)
+            if let Ok(mut det) = detector.lock() {
+                det.mark_done(&app_handle);
+            }
+
+            log::info!("PTY reader thread ended for session {sid}");
         });
 
         Ok(child_pid)
@@ -161,19 +167,19 @@ impl PtyPool {
         let master = self
             .masters
             .get(session_id)
-            .ok_or_else(|| format!("Session {} not found in PTY pool", session_id))?;
+            .ok_or_else(|| format!("Session {session_id} not found in PTY pool"))?;
 
         let master_lock = master
             .lock()
-            .map_err(|e| format!("Failed to lock PTY master: {}", e))?;
+            .map_err(|e| format!("Failed to lock PTY master: {e}"))?;
 
         let mut writer = master_lock
             .take_writer()
-            .map_err(|e| format!("Failed to get PTY writer: {}", e))?;
+            .map_err(|e| format!("Failed to get PTY writer: {e}"))?;
 
         writer
             .write_all(data)
-            .map_err(|e| format!("Failed to write to PTY: {}", e))?;
+            .map_err(|e| format!("Failed to write to PTY: {e}"))?;
 
         Ok(())
     }
@@ -183,11 +189,11 @@ impl PtyPool {
         let master = self
             .masters
             .get(session_id)
-            .ok_or_else(|| format!("Session {} not found in PTY pool", session_id))?;
+            .ok_or_else(|| format!("Session {session_id} not found in PTY pool"))?;
 
         let master_lock = master
             .lock()
-            .map_err(|e| format!("Failed to lock PTY master: {}", e))?;
+            .map_err(|e| format!("Failed to lock PTY master: {e}"))?;
 
         master_lock
             .resize(PtySize {
@@ -196,35 +202,39 @@ impl PtyPool {
                 pixel_width: 0,
                 pixel_height: 0,
             })
-            .map_err(|e| format!("Failed to resize PTY: {}", e))?;
+            .map_err(|e| format!("Failed to resize PTY: {e}"))?;
 
         Ok(())
     }
 
-    /// Kill a PTY session
+    /// Kill a PTY session. Sends SIGHUP immediately, then spawns a background
+    /// thread to SIGKILL after a grace period. The PtyPool lock is NOT held
+    /// during the sleep (BUG-02 fix).
     pub fn kill(&mut self, session_id: &str) -> Result<(), String> {
-        // Try to send SIGHUP first
-        if let Some(pid) = self.child_pids.get(session_id) {
-            let pid = *pid;
-            if pid > 0 {
-                let _ = nix::sys::signal::kill(
-                    nix::unistd::Pid::from_raw(pid as i32),
-                    nix::sys::signal::Signal::SIGHUP,
-                );
+        let pid = self.children.get(session_id)
+            .and_then(|c| c.process_id())
+            .unwrap_or(0);
 
-                // Wait briefly for graceful exit
+        if pid > 0 {
+            // Send SIGHUP immediately
+            let _ = nix::sys::signal::kill(
+                nix::unistd::Pid::from_raw(pid as i32),
+                nix::sys::signal::Signal::SIGHUP,
+            );
+
+            // Schedule SIGKILL in background — don't block the caller
+            thread::spawn(move || {
                 thread::sleep(Duration::from_millis(500));
-
-                // Force kill if still running
                 let _ = nix::sys::signal::kill(
                     nix::unistd::Pid::from_raw(pid as i32),
                     nix::sys::signal::Signal::SIGKILL,
                 );
-            }
+            });
         }
 
+        // Remove entries — child handle is dropped here which reaps the zombie (BUG-01 fix)
         self.masters.remove(session_id);
-        self.child_pids.remove(session_id);
+        self.children.remove(session_id);
         self.status_detectors.remove(session_id);
 
         Ok(())

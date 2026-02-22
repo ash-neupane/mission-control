@@ -184,7 +184,9 @@ export default function NewSessionModal() {
     try {
       const project = await addProjectApi(newProjectPath.trim());
       setLocalProjects((prev) => [project, ...prev]);
-      setProjects([project, ...projects]);
+      // Use current store state, not the stale closure variable
+      const currentProjects = useStore.getState().projects;
+      setProjects([project, ...currentProjects]);
       setAddingProject(false);
       setNewProjectPath("");
     } catch (err) {

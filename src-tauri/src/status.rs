@@ -98,10 +98,12 @@ impl StatusDetector {
                     },
                 );
                 self.transition(SessionStatus::PrReady, app_handle);
+                // Don't let detect_status() override PrReady in the same feed call
+                return;
             }
         }
 
-        // Status detection
+        // Status detection (skip if already PrReady — preserve until prompt resets it)
         let new_status = self.detect_status(&clean_text);
         if new_status != self.current_status {
             self.transition(new_status, app_handle);
@@ -154,7 +156,19 @@ impl StatusDetector {
         self.current_status.clone()
     }
 
+    /// Mark session as Done (called by reader thread on PTY EOF).
+    pub fn mark_done(&mut self, app_handle: &AppHandle) {
+        if self.current_status != SessionStatus::Done {
+            self.transition(SessionStatus::Done, app_handle);
+        }
+    }
+
     fn transition(&mut self, new_status: SessionStatus, app_handle: &AppHandle) {
+        use crate::notifications;
+
+        // Check if this transition should trigger an OS notification
+        let should_notify = notifications::should_notify(&self.current_status, &new_status);
+
         log::info!(
             "Session {} status: {:?} -> {:?}",
             self.session_id,
@@ -162,7 +176,23 @@ impl StatusDetector {
             new_status
         );
 
+        let old_status = self.current_status.clone();
         self.current_status = new_status.clone();
+
+        // Emit notification event so the frontend can show an OS notification
+        if should_notify {
+            let _ = app_handle.emit(
+                "session-notification",
+                serde_json::json!({
+                    "session_id": self.session_id,
+                    "title": notifications::notification_title(0),
+                    "body": notifications::notification_body(
+                        self.auto_name.as_deref().unwrap_or(&self.session_id),
+                        &format!("{old_status:?} → {new_status:?}"),
+                    ),
+                }),
+            );
+        }
 
         // Track when the session started needing attention (backend is source of truth)
         if new_status == SessionStatus::NeedsInput || new_status == SessionStatus::Stuck {

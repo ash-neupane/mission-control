@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Terminal as XTerminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
@@ -19,14 +19,15 @@ export default function Terminal({
   className = "",
 }: TerminalProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const termRef = useRef<XTerminal | null>(null);
+  // Use state (not ref) so usePty re-subscribes when the terminal is created
+  const [term, setTerm] = useState<XTerminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
 
   // Initialize xterm.js
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const term = new XTerminal({
+    const t = new XTerminal({
       fontFamily:
         "JetBrains Mono, ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace",
       fontSize,
@@ -59,14 +60,14 @@ export default function Terminal({
     });
 
     const fitAddon = new FitAddon();
-    term.loadAddon(fitAddon);
+    t.loadAddon(fitAddon);
 
-    term.open(containerRef.current);
+    t.open(containerRef.current);
 
     // Try WebGL renderer for better performance
     try {
       const webglAddon = new WebglAddon();
-      term.loadAddon(webglAddon);
+      t.loadAddon(webglAddon);
       webglAddon.onContextLoss(() => {
         webglAddon.dispose();
       });
@@ -76,28 +77,28 @@ export default function Terminal({
 
     fitAddon.fit();
 
-    termRef.current = term;
     fitAddonRef.current = fitAddon;
+    setTerm(t); // triggers re-render → usePty subscribes
 
     return () => {
-      term.dispose();
-      termRef.current = null;
+      t.dispose();
+      setTerm(null);
       fitAddonRef.current = null;
     };
   }, [sessionId]); // Re-create terminal when session changes
 
   // Update font size and cursor
   useEffect(() => {
-    if (termRef.current) {
-      termRef.current.options.fontSize = fontSize;
-      termRef.current.options.cursorBlink = active;
-      termRef.current.options.theme = {
-        ...termRef.current.options.theme,
+    if (term) {
+      term.options.fontSize = fontSize;
+      term.options.cursorBlink = active;
+      term.options.theme = {
+        ...term.options.theme,
         cursor: active ? "#e0e0e8" : "transparent",
       };
       fitAddonRef.current?.fit();
     }
-  }, [fontSize, active]);
+  }, [fontSize, active, term]);
 
   // Handle container resize
   useEffect(() => {
@@ -116,28 +117,28 @@ export default function Terminal({
     return () => observer.disconnect();
   }, [sessionId]);
 
-  // Connect to PTY
-  const { handleResize } = usePty(sessionId, termRef.current, active);
+  // Connect to PTY — term is now state so this re-subscribes reliably
+  const { handleResize } = usePty(sessionId, term, active);
 
   // Forward resize events to backend
   useEffect(() => {
-    if (!termRef.current) return;
+    if (!term) return;
 
-    const disposer = termRef.current.onResize(
+    const disposer = term.onResize(
       ({ cols, rows }: { cols: number; rows: number }) => {
         handleResize(cols, rows);
       }
     );
 
     return () => disposer.dispose();
-  }, [sessionId, handleResize]);
+  }, [sessionId, handleResize, term]);
 
   // Focus the terminal when active
   useEffect(() => {
-    if (active && termRef.current) {
-      termRef.current.focus();
+    if (active && term) {
+      term.focus();
     }
-  }, [active]);
+  }, [active, term]);
 
   return (
     <div

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStore } from "../store";
 import { killSession as killSessionApi } from "../lib/tauri";
 
@@ -7,6 +7,12 @@ export default function KillConfirmDialog() {
     useStore();
 
   const session = sessions.find((s) => s.id === killConfirmSessionId);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset error when dialog opens for a new session
+  useEffect(() => {
+    setError(null);
+  }, [killConfirmSessionId]);
 
   useEffect(() => {
     if (!killConfirmSessionId) return;
@@ -21,7 +27,7 @@ export default function KillConfirmDialog() {
               removeSession(killConfirmSessionId);
               setKillConfirm(null);
             })
-            .catch(console.error);
+            .catch((err) => setError(String(err)));
         }
       } else if (e.key === "n" || e.key === "N" || e.key === "Escape") {
         e.preventDefault();
@@ -49,6 +55,11 @@ export default function KillConfirmDialog() {
           </span>{" "}
           ({session.project_name}). The PTY process will be killed.
         </p>
+        {error && (
+          <div className="text-cmux-stuck text-[11px] bg-red-900/20 px-2 py-1 rounded mb-3">
+            Failed to kill session: {error}
+          </div>
+        )}
         <div className="flex gap-3 text-[10px] text-cmux-text-muted">
           <span>
             <kbd className="px-1 py-0.5 rounded bg-cmux-border text-cmux-text-secondary text-[9px]">
