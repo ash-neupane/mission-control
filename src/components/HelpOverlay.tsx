@@ -38,7 +38,6 @@ export default function HelpOverlay() {
               <HelpRow keys="n" desc="New session" />
               <HelpRow keys="q" desc="Kill session" />
               <HelpRow keys="?" desc="Toggle help" />
-              <HelpRow keys="Enter" desc="Focus selected" />
             </div>
           </section>
 

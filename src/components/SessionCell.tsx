@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { Session } from "../types";
 import { statusColors, statusLabels, statusBorderClass } from "../lib/colors";
 import Terminal from "./Terminal";
@@ -12,7 +13,12 @@ export default function SessionCell({ session }: SessionCellProps) {
   const color = statusColors[session.status];
   const label = statusLabels[session.status];
 
-  const elapsed = Math.floor(Date.now() / 1000 - session.started_at);
+  const [now, setNow] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setNow(Math.floor(Date.now() / 1000)), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const elapsed = Math.max(0, now - session.started_at);
   const minutes = Math.floor(elapsed / 60);
   const timeStr = minutes > 0 ? `${minutes}m` : "<1m";
 

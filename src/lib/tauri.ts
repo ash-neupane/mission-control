@@ -119,3 +119,17 @@ export function onPrDetected(
     callback(e.payload);
   });
 }
+
+export interface SessionNotificationEvent {
+  session_id: string;
+  title: string;
+  body: string;
+}
+
+export function onSessionNotification(
+  callback: (event: SessionNotificationEvent) => void
+): Promise<UnlistenFn> {
+  return listen<SessionNotificationEvent>("session-notification", (e) => {
+    callback(e.payload);
+  });
+}

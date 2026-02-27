@@ -115,6 +115,10 @@ export const useStore = create<AppState>((set, get) => ({
   removeSession: (sessionId) =>
     set((s) => ({
       sessions: s.sessions.filter((sess) => sess.id !== sessionId),
+      // If the removed session was focused, return to overview
+      ...(s.focusedSessionId === sessionId
+        ? { viewMode: "overview" as ViewMode, focusedSessionId: null }
+        : {}),
     })),
 
   updateSessionStatus: (sessionId, status, name, needsAttentionSince) =>

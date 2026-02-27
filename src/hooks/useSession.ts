@@ -6,6 +6,7 @@ import {
   getConfig,
   onStatusChanged,
   onPrDetected,
+  onSessionNotification,
 } from "../lib/tauri";
 
 /**
@@ -25,6 +26,7 @@ export function useSessionInit() {
     let cancelled = false;
     let unlistenStatus: (() => void) | null = null;
     let unlistenPr: (() => void) | null = null;
+    let unlistenNotify: (() => void) | null = null;
 
     const init = async () => {
       try {
@@ -44,30 +46,53 @@ export function useSessionInit() {
       // Subscribe to events after initial load
       if (cancelled) return;
 
-      unlistenStatus = await onStatusChanged((event) => {
-        if (cancelled) return;
-        updateSessionStatus(
-          event.session_id,
-          event.new_status,
-          event.name,
-          event.needs_attention_since
-        );
-      });
+      try {
+        unlistenStatus = await onStatusChanged((event) => {
+          if (cancelled) return;
+          updateSessionStatus(
+            event.session_id,
+            event.new_status,
+            event.name,
+            event.needs_attention_since
+          );
+        });
 
-      if (cancelled) {
-        unlistenStatus();
-        unlistenStatus = null;
-        return;
-      }
+        if (cancelled) {
+          unlistenStatus();
+          unlistenStatus = null;
+          return;
+        }
 
-      unlistenPr = await onPrDetected((event) => {
-        if (cancelled) return;
-        updateSessionPrUrl(event.session_id, event.url);
-      });
+        unlistenPr = await onPrDetected((event) => {
+          if (cancelled) return;
+          updateSessionPrUrl(event.session_id, event.url);
+        });
 
-      if (cancelled) {
-        unlistenPr();
-        unlistenPr = null;
+        if (cancelled) {
+          unlistenPr();
+          unlistenPr = null;
+          return;
+        }
+
+        unlistenNotify = await onSessionNotification((event) => {
+          if (cancelled) return;
+          if (Notification.permission === "granted") {
+            new Notification(event.title, { body: event.body });
+          } else if (Notification.permission !== "denied") {
+            Notification.requestPermission().then((perm) => {
+              if (perm === "granted") {
+                new Notification(event.title, { body: event.body });
+              }
+            });
+          }
+        });
+
+        if (cancelled) {
+          unlistenNotify();
+          unlistenNotify = null;
+        }
+      } catch (err) {
+        console.error("Failed to subscribe to session events:", err);
       }
     };
 
@@ -77,6 +102,7 @@ export function useSessionInit() {
       cancelled = true;
       unlistenStatus?.();
       unlistenPr?.();
+      unlistenNotify?.();
     };
   }, []);
 }

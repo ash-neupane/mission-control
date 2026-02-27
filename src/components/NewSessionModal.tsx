@@ -36,10 +36,12 @@ export default function NewSessionModal() {
   // Load projects
   useEffect(() => {
     if (showNewSessionModal) {
-      listProjects().then((p) => {
-        setLocalProjects(p);
-        setProjects(p);
-      });
+      listProjects()
+        .then((p) => {
+          setLocalProjects(p);
+          setProjects(p);
+        })
+        .catch((err) => setError(String(err)));
       setStep("select-project");
       setSearch("");
       setSelectedIndex(0);
@@ -54,11 +56,15 @@ export default function NewSessionModal() {
 
   // Focus appropriate element based on step
   useEffect(() => {
-    if (showNewSessionModal && step === "select-project") {
-      setTimeout(() => searchRef.current?.focus(), 50);
-    } else if (showNewSessionModal && step === "confirm") {
-      setTimeout(() => overlayRef.current?.focus(), 50);
-    }
+    if (!showNewSessionModal) return;
+    const id = setTimeout(
+      () =>
+        step === "select-project"
+          ? searchRef.current?.focus()
+          : overlayRef.current?.focus(),
+      50
+    );
+    return () => clearTimeout(id);
   }, [showNewSessionModal, step]);
 
   // Fuzzy search

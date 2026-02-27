@@ -36,7 +36,9 @@ export function usePty(
       unlistenRef.current = unlisten;
     };
 
-    setup();
+    setup().catch((err) =>
+      console.error(`Failed to subscribe to PTY output for ${sessionId}:`, err)
+    );
 
     return () => {
       cancelled = true;

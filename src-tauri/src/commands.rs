@@ -161,6 +161,9 @@ pub fn resize_pty(
     cols: u16,
     rows: u16,
 ) -> Result<(), String> {
+    if cols == 0 || rows == 0 {
+        return Err("Invalid PTY dimensions: cols and rows must be > 0".to_string());
+    }
     let pool = lock_or_err(&pty_pool.0)?;
     pool.resize(&session_id, cols, rows)
 }

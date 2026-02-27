@@ -97,6 +97,7 @@ export function useHotkeys() {
         // Escape: return to overview
         if (e.key === "Escape") {
           e.preventDefault();
+          e.stopPropagation();
           useStore.getState().returnToOverview();
           return;
         }
@@ -107,6 +108,7 @@ export function useHotkeys() {
           const session = sessions.find((s) => s.number === num);
           if (session && session.id !== focusedSessionId) {
             e.preventDefault();
+            e.stopPropagation();
             useStore.getState().focusSession(session.id);
           }
           // Don't prevent default if it's the current session — let it pass through
@@ -116,6 +118,7 @@ export function useHotkeys() {
         // Tab: jump to next NeedsInput session
         if (e.key === "Tab") {
           e.preventDefault();
+          e.stopPropagation();
           const next = useStore
             .getState()
             .getNextNeedsInputSession(focusedSessionId ?? undefined);
@@ -128,6 +131,7 @@ export function useHotkeys() {
         // Ctrl+P: open PR URL
         if (e.ctrlKey && e.key === "p") {
           e.preventDefault();
+          e.stopPropagation();
           const focused = sessions.find(
             (s) => s.id === focusedSessionId
           );
@@ -140,6 +144,7 @@ export function useHotkeys() {
         // Ctrl+B: toggle side panel
         if (e.ctrlKey && e.key === "b") {
           e.preventDefault();
+          e.stopPropagation();
           useStore.getState().toggleSidePanel();
           return;
         }
@@ -148,7 +153,7 @@ export function useHotkeys() {
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, []);
 }
