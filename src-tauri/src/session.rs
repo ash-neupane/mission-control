@@ -55,8 +55,6 @@ pub struct Session {
     pub branch: Option<String>,
     pub pr_url: Option<String>,
     pub started_at: u64,
-    pub tokens_used: Option<u64>,
-    pub last_output_preview: String,
     pub needs_attention_since: Option<u64>,
 }
 
@@ -109,10 +107,6 @@ impl SessionManager {
         self.sessions.get(id)
     }
 
-    pub fn get_session_mut(&mut self, id: &str) -> Option<&mut Session> {
-        self.sessions.get_mut(id)
-    }
-
     pub fn list_sessions(&self) -> Vec<Session> {
         let mut sessions: Vec<Session> = self.sessions.values().cloned().collect();
         sessions.sort_by(|a, b| {
@@ -161,8 +155,6 @@ mod tests {
             branch: None,
             pr_url: None,
             started_at: 1000,
-            tokens_used: None,
-            last_output_preview: String::new(),
             needs_attention_since: None,
         }
     }

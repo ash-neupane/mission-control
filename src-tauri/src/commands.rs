@@ -81,8 +81,6 @@ pub fn create_session(
         branch: branch.clone(),
         pr_url: None,
         started_at: unix_timestamp(),
-        tokens_used: None,
-        last_output_preview: String::new(),
         needs_attention_since: None,
     };
 

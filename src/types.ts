@@ -20,8 +20,6 @@ export interface Session {
   branch: string | null;
   pr_url: string | null;
   started_at: number;
-  tokens_used: number | null;
-  last_output_preview: string;
   needs_attention_since: number | null;
 }
 
