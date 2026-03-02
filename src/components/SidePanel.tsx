@@ -26,10 +26,6 @@ export default function SidePanel({ session }: SidePanelProps) {
 
   const timeStr = useElapsedTime(session.started_at);
 
-  const tokensStr = session.tokens_used
-    ? `${(session.tokens_used / 1000).toFixed(1)}k`
-    : "—";
-
   const statusColor = statusColors[session.status];
   const statusLabel = statusLabels[session.status];
 
@@ -51,7 +47,6 @@ export default function SidePanel({ session }: SidePanelProps) {
               />
             )}
             <InfoRow label="Time" value={timeStr} />
-            <InfoRow label="Tokens" value={tokensStr} />
             <InfoRow label="Agent" value={session.agent} />
             <div className="flex items-center justify-between">
               <span className="text-cmux-text-muted">Status</span>

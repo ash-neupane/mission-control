@@ -22,10 +22,6 @@ export default function SessionCell({ session }: SessionCellProps) {
   const minutes = Math.floor(elapsed / 60);
   const timeStr = minutes > 0 ? `${minutes}m` : "<1m";
 
-  const tokensStr = session.tokens_used
-    ? `${(session.tokens_used / 1000).toFixed(1)}k tokens`
-    : "";
-
   return (
     <div
       className={`bg-cmux-surface rounded-lg overflow-hidden cursor-pointer hover:bg-opacity-80 transition-all ${statusBorderClass(session.status)}`}
@@ -67,9 +63,8 @@ export default function SessionCell({ session }: SessionCellProps) {
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between px-3 py-1 border-t border-cmux-border text-[10px] text-cmux-text-muted">
+      <div className="flex items-center px-3 py-1 border-t border-cmux-border text-[10px] text-cmux-text-muted">
         <span>{timeStr}</span>
-        {tokensStr && <span>{tokensStr}</span>}
       </div>
     </div>
   );
