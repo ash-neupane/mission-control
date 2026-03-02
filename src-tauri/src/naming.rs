@@ -79,4 +79,65 @@ mod tests {
     fn test_fallback_name() {
         assert_eq!(fallback_name("payments-api", 3), "payments-api-3");
     }
+
+    #[test]
+    fn test_name_from_branch_empty_after_strip() {
+        // "cmux/" prefix stripped leaves empty string
+        assert_eq!(name_from_branch("cmux/", "cmux/"), None);
+    }
+
+    #[test]
+    fn test_name_from_branch_short_result() {
+        // Result "ab" is < 3 chars
+        assert_eq!(name_from_branch("cmux/ab", "cmux/"), None);
+    }
+
+    #[test]
+    fn test_name_from_branch_normalizes_underscores_and_slashes() {
+        assert_eq!(
+            name_from_branch("feature/add_user_auth", "cmux/"),
+            Some("add-user-auth".to_string())
+        );
+    }
+
+    #[test]
+    fn test_name_from_branch_no_prefix_match() {
+        // Branch doesn't match any known prefix — used as-is
+        assert_eq!(
+            name_from_branch("release/v2.0", "cmux/"),
+            Some("release-v2.0".to_string())
+        );
+    }
+
+    #[test]
+    fn test_name_from_branch_hotfix_prefix() {
+        assert_eq!(
+            name_from_branch("hotfix/urgent-patch", "cmux/"),
+            Some("urgent-patch".to_string())
+        );
+    }
+
+    #[test]
+    fn test_name_from_branch_bugfix_prefix() {
+        assert_eq!(
+            name_from_branch("bugfix/null-pointer", "cmux/"),
+            Some("null-pointer".to_string())
+        );
+    }
+
+    #[test]
+    fn test_name_from_branch_numeric_session() {
+        // "cmux/session-7" → strips to "7" → numeric → None
+        assert_eq!(name_from_branch("cmux/session-7", "cmux/"), None);
+    }
+
+    #[test]
+    fn test_name_from_branch_session_prefix_with_meaningful_name() {
+        // "cmux/session-auth-fix" → strips "cmux/session-" prefix
+        // but "session-" variant strips "cmux/session-" → "auth-fix"
+        assert_eq!(
+            name_from_branch("cmux/session-auth-fix", "cmux/"),
+            Some("auth-fix".to_string())
+        );
+    }
 }

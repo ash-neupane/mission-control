@@ -96,6 +96,7 @@ pub fn create_session(
     let args_refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     pool.spawn(
         &session_id,
+        number,
         &project_path,
         &command,
         &args_refs,

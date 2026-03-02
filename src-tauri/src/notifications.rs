@@ -73,5 +73,54 @@ mod tests {
     #[test]
     fn test_notification_title() {
         assert_eq!(notification_title(3), "c-mux — Session 3");
+        assert_eq!(notification_title(9), "c-mux — Session 9");
+        assert_eq!(notification_title(1), "c-mux — Session 1");
+    }
+
+    #[test]
+    fn test_should_notify_all_transitions() {
+        let statuses = [
+            SessionStatus::Empty,
+            SessionStatus::Working,
+            SessionStatus::NeedsInput,
+            SessionStatus::PrReady,
+            SessionStatus::Stuck,
+            SessionStatus::Done,
+        ];
+
+        // Exhaustively verify: only transitions INTO NeedsInput/Stuck
+        // from non-NeedsInput/non-Stuck states trigger notification
+        for old in &statuses {
+            for new in &statuses {
+                let result = should_notify(old, new);
+                let expect = matches!(new, SessionStatus::NeedsInput | SessionStatus::Stuck)
+                    && !matches!(old, SessionStatus::NeedsInput | SessionStatus::Stuck);
+                assert_eq!(
+                    result, expect,
+                    "should_notify({old:?} → {new:?}) = {result}, expected {expect}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_notification_body_exact_80_chars() {
+        let output = "x".repeat(80);
+        let body = notification_body("t", &output);
+        // "t: " + 80 = 83 chars, but output is exactly 80 so no truncation
+        assert!(!body.ends_with("..."));
+    }
+
+    #[test]
+    fn test_notification_body_81_chars_truncated() {
+        let output = "x".repeat(81);
+        let body = notification_body("t", &output);
+        assert!(body.ends_with("..."));
+    }
+
+    #[test]
+    fn test_notification_body_empty_output() {
+        let body = notification_body("session", "");
+        assert_eq!(body, "session: ");
     }
 }
