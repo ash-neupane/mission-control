@@ -235,4 +235,99 @@ mod tests {
         assert_eq!(format!("{}", AgentType::Codex), "Codex");
         assert_eq!(format!("{}", AgentType::Shell), "Shell");
     }
+
+    #[test]
+    fn test_list_sessions_needs_input_sorted_by_attention_time() {
+        let mut manager = SessionManager::new();
+
+        let mut s1 = make_session("a", 1, SessionStatus::NeedsInput);
+        s1.needs_attention_since = Some(1000); // oldest
+
+        let mut s2 = make_session("b", 2, SessionStatus::NeedsInput);
+        s2.needs_attention_since = Some(3000); // newest
+
+        let mut s3 = make_session("c", 3, SessionStatus::NeedsInput);
+        s3.needs_attention_since = Some(2000); // middle
+
+        manager.add_session(s2);
+        manager.add_session(s3);
+        manager.add_session(s1);
+
+        let sessions = manager.list_sessions();
+        // All NeedsInput, should be sorted oldest attention first
+        assert_eq!(sessions[0].id, "a"); // 1000
+        assert_eq!(sessions[1].id, "c"); // 2000
+        assert_eq!(sessions[2].id, "b"); // 3000
+    }
+
+    #[test]
+    fn test_list_sessions_mixed_status_priority() {
+        let mut manager = SessionManager::new();
+
+        manager.add_session(make_session("done", 1, SessionStatus::Done));
+        manager.add_session(make_session("stuck", 2, SessionStatus::Stuck));
+        manager.add_session(make_session("working", 3, SessionStatus::Working));
+        manager.add_session(make_session("needs", 4, SessionStatus::NeedsInput));
+        manager.add_session(make_session("pr", 5, SessionStatus::PrReady));
+        manager.add_session(make_session("empty", 6, SessionStatus::Empty));
+
+        let sessions = manager.list_sessions();
+        assert_eq!(sessions[0].status, SessionStatus::NeedsInput);
+        assert_eq!(sessions[1].status, SessionStatus::Stuck);
+        assert_eq!(sessions[2].status, SessionStatus::PrReady);
+        assert_eq!(sessions[3].status, SessionStatus::Working);
+        assert_eq!(sessions[4].status, SessionStatus::Done);
+        assert_eq!(sessions[5].status, SessionStatus::Empty);
+    }
+
+    #[test]
+    fn test_list_sessions_same_status_sorted_by_number() {
+        let mut manager = SessionManager::new();
+        manager.add_session(make_session("c", 5, SessionStatus::Working));
+        manager.add_session(make_session("a", 2, SessionStatus::Working));
+        manager.add_session(make_session("b", 8, SessionStatus::Working));
+
+        let sessions = manager.list_sessions();
+        assert_eq!(sessions[0].number, 2);
+        assert_eq!(sessions[1].number, 5);
+        assert_eq!(sessions[2].number, 8);
+    }
+
+    #[test]
+    fn test_add_session_panics_on_invalid_number() {
+        let mut manager = SessionManager::new();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            manager.add_session(make_session("bad", 0, SessionStatus::Empty));
+        }));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_remove_nonexistent_session_returns_none() {
+        let mut manager = SessionManager::new();
+        assert!(manager.remove_session("nonexistent").is_none());
+    }
+
+    #[test]
+    fn test_fill_and_empty_all_slots() {
+        let mut manager = SessionManager::new();
+        for i in 1..=9 {
+            manager.add_session(make_session(
+                &format!("s{}", i),
+                i,
+                SessionStatus::Working,
+            ));
+        }
+        assert_eq!(manager.next_available_number(), None);
+
+        // Remove middle slot
+        manager.remove_session("s5");
+        assert_eq!(manager.next_available_number(), Some(5));
+
+        // Remove all
+        for i in 1..=9 {
+            manager.remove_session(&format!("s{}", i));
+        }
+        assert_eq!(manager.next_available_number(), Some(1));
+    }
 }

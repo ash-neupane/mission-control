@@ -37,6 +37,7 @@ impl PtyPool {
     pub fn spawn(
         &mut self,
         session_id: &str,
+        session_number: u8,
         working_dir: &str,
         command: &str,
         args: &[&str],
@@ -81,7 +82,7 @@ impl PtyPool {
         self.children.insert(session_id.to_string(), child);
 
         // Create status detector for this session
-        let detector = Arc::new(Mutex::new(StatusDetector::new(session_id.to_string())));
+        let detector = Arc::new(Mutex::new(StatusDetector::new(session_id.to_string(), session_number)));
         self.status_detectors
             .insert(session_id.to_string(), detector.clone());
 
