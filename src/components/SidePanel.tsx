@@ -122,21 +122,24 @@ function InfoRow({
 function OtherSessionRow({ session }: { session: Session }) {
   const focusSession = useStore((s) => s.focusSession);
   const color = statusColors[session.status];
+  const label = statusLabels[session.status];
 
   return (
     <button
       onClick={() => focusSession(session.id)}
       className="flex items-center gap-2 w-full text-left px-1.5 py-1 rounded hover:bg-cmux-border transition-colors text-[11px]"
     >
-      <span className="text-cmux-text-muted font-bold w-3 text-right">
+      <span className="text-cmux-text-muted font-bold w-3 text-right flex-shrink-0">
         {session.number}
       </span>
-      <span
-        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-        style={{ backgroundColor: color }}
-      />
-      <span className="text-cmux-text-secondary truncate">
+      <span className="text-cmux-text-secondary truncate flex-1">
         {session.name}
+      </span>
+      <span
+        className="text-[8px] font-bold uppercase flex-shrink-0"
+        style={{ color }}
+      >
+        {label}
       </span>
     </button>
   );
