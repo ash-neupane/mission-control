@@ -25,7 +25,7 @@ export default function SessionCell({ session, selected = false }: SessionCellPr
 
   return (
     <div
-      className={`bg-cmux-surface rounded-lg overflow-hidden cursor-pointer hover:bg-opacity-80 transition-all ${statusBorderClass(session.status)} ${selected ? "ring-1 ring-cmux-text-muted" : ""}`}
+      className={`bg-cmux-surface rounded-lg overflow-hidden cursor-pointer hover:bg-opacity-80 transition-all flex flex-col ${statusBorderClass(session.status)} ${selected ? "ring-1 ring-cmux-text-muted" : ""}`}
       onClick={() => focusSession(session.id)}
     >
       {/* Header */}
@@ -54,8 +54,8 @@ export default function SessionCell({ session, selected = false }: SessionCellPr
         </div>
       </div>
 
-      {/* Terminal Preview */}
-      <div className="h-[150px] px-1">
+      {/* Terminal Preview — flex-1 fills available cell height */}
+      <div className="flex-1 min-h-0 px-1">
         <Terminal
           sessionId={session.id}
           active={false}
