@@ -3,18 +3,28 @@ import SessionCell from "./SessionCell";
 
 export default function Overview() {
   const sessions = useStore((s) => s.sessions);
+  const selectedOverviewIndex = useStore((s) => s.selectedOverviewIndex);
 
   const gridCols = getGridCols(sessions.length);
 
   if (sessions.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-cmux-text-secondary text-sm mb-2">
-            No active sessions
+        <div className="text-center max-w-[280px]">
+          <p className="text-cmux-text-primary text-sm font-semibold mb-1">
+            c-mux
           </p>
-          <p className="text-cmux-text-muted text-xs">
-            Press <kbd className="px-1 py-0.5 rounded bg-cmux-border text-cmux-text-secondary text-[10px] font-bold">n</kbd> to create a new session
+          <p className="text-cmux-text-secondary text-[11px] mb-4">
+            Launch AI coding agents in parallel and supervise them from one screen.
+          </p>
+          <kbd
+            className="inline-block px-3 py-1.5 rounded bg-cmux-surface border border-cmux-border text-cmux-text-primary text-[12px] font-bold cursor-pointer hover:border-cmux-working transition-colors"
+            onClick={() => useStore.getState().toggleNewSessionModal()}
+          >
+            n
+          </kbd>
+          <p className="text-cmux-text-muted text-[10px] mt-2">
+            press to start your first session
           </p>
         </div>
       </div>
@@ -27,8 +37,12 @@ export default function Overview() {
         className={`grid gap-3 h-full ${gridCols}`}
         style={{ gridAutoRows: "1fr" }}
       >
-        {sessions.map((session) => (
-          <SessionCell key={session.id} session={session} />
+        {sessions.map((session, index) => (
+          <SessionCell
+            key={session.id}
+            session={session}
+            selected={index === selectedOverviewIndex}
+          />
         ))}
       </div>
     </div>

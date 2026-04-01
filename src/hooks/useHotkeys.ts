@@ -1,12 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useStore } from "../store";
 import { openUrl } from "../lib/tauri";
 
 /**
  * Global hotkey handler for c-mux.
- * Registers keyboard shortcuts that work across both Overview and Focus modes.
+ *
+ * Design principles for focus mode ergonomics:
+ * - Bare keys (letters, numbers, Tab, Escape) MUST pass through to the terminal.
+ * - All c-mux shortcuts in focus mode use modifier keys (Ctrl, Alt).
+ * - Overview mode is safe to use bare keys since there's no active terminal.
  */
 export function useHotkeys() {
+  // Track last Escape time for double-Escape detection in focus mode
+  const lastEscapeRef = useRef<number>(0);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const {
@@ -14,11 +21,15 @@ export function useHotkeys() {
         focusedSessionId,
         showNewSessionModal,
         showHelpOverlay,
+        killConfirmSessionId,
         sessions,
       } = useStore.getState();
 
       // If modal is open, don't handle global hotkeys
       if (showNewSessionModal) return;
+
+      // Kill confirm dialog is handled by its own listener
+      if (killConfirmSessionId) return;
 
       // Help overlay
       if (showHelpOverlay) {
@@ -36,7 +47,7 @@ export function useHotkeys() {
         return;
       }
 
-      // Overview mode hotkeys
+      // Overview mode hotkeys — bare keys are safe here (no active terminal)
       if (viewMode === "overview") {
         // Number keys 1-9: focus session
         if (e.key >= "1" && e.key <= "9" && !e.ctrlKey && !e.altKey) {
@@ -46,6 +57,30 @@ export function useHotkeys() {
             e.preventDefault();
             useStore.getState().focusSession(session.id);
           }
+          return;
+        }
+
+        // Arrow keys: navigate selected session in overview
+        if (e.key === "ArrowDown" || e.key === "ArrowUp" ||
+            e.key === "ArrowLeft" || e.key === "ArrowRight") {
+          e.preventDefault();
+          const { moveOverviewSelection } = useStore.getState();
+          const cols = sessions.length <= 1 ? 1 : sessions.length <= 4 ? 2 : 3;
+          let delta = 0;
+          if (e.key === "ArrowDown") delta = cols;
+          else if (e.key === "ArrowUp") delta = -cols;
+          else if (e.key === "ArrowRight") delta = 1;
+          else if (e.key === "ArrowLeft") delta = -1;
+          moveOverviewSelection(delta, sessions.length);
+          return;
+        }
+
+        // Enter: focus selected session
+        if (e.key === "Enter" && sessions.length > 0) {
+          e.preventDefault();
+          const { selectedOverviewIndex } = useStore.getState();
+          const idx = Math.min(selectedOverviewIndex, sessions.length - 1);
+          useStore.getState().focusSession(sessions[idx].id);
           return;
         }
 
@@ -68,16 +103,13 @@ export function useHotkeys() {
           return;
         }
 
-        // q: kill session (prompts confirmation for first visible session)
+        // q: kill selected session
         if (e.key === "q" && !e.ctrlKey) {
           e.preventDefault();
           if (sessions.length > 0) {
-            const { killConfirmSessionId } = useStore.getState();
-            if (killConfirmSessionId) {
-              useStore.getState().setKillConfirm(null);
-            } else {
-              useStore.getState().setKillConfirm(sessions[0].id);
-            }
+            const { selectedOverviewIndex } = useStore.getState();
+            const idx = Math.min(selectedOverviewIndex, sessions.length - 1);
+            useStore.getState().setKillConfirm(sessions[idx].id);
           }
           return;
         }
@@ -92,31 +124,37 @@ export function useHotkeys() {
         return;
       }
 
-      // Focus mode hotkeys
+      // Focus mode hotkeys — only modifier-based shortcuts to avoid stealing terminal input
       if (viewMode === "focus") {
-        // Escape: return to overview
+        // Double-Escape: return to overview (two Escape presses within 400ms)
         if (e.key === "Escape") {
-          e.preventDefault();
-          e.stopPropagation();
-          useStore.getState().returnToOverview();
+          const now = Date.now();
+          if (now - lastEscapeRef.current < 400) {
+            e.preventDefault();
+            e.stopPropagation();
+            lastEscapeRef.current = 0;
+            useStore.getState().returnToOverview();
+          } else {
+            lastEscapeRef.current = now;
+          }
+          // Single Escape passes through to the terminal
           return;
         }
 
-        // Number keys 1-9: switch session (stays in focus)
-        if (e.key >= "1" && e.key <= "9" && !e.ctrlKey && !e.altKey) {
+        // Alt+1-9: switch session (stays in focus)
+        if (e.altKey && e.key >= "1" && e.key <= "9") {
           const num = parseInt(e.key, 10);
           const session = sessions.find((s) => s.number === num);
-          if (session && session.id !== focusedSessionId) {
+          if (session) {
             e.preventDefault();
             e.stopPropagation();
             useStore.getState().focusSession(session.id);
           }
-          // Don't prevent default if it's the current session — let it pass through
           return;
         }
 
-        // Tab: jump to next NeedsInput session
-        if (e.key === "Tab") {
+        // Alt+Tab: jump to next NeedsInput session
+        if (e.altKey && e.key === "Tab") {
           e.preventDefault();
           e.stopPropagation();
           const next = useStore
@@ -124,6 +162,16 @@ export function useHotkeys() {
             .getNextNeedsInputSession(focusedSessionId ?? undefined);
           if (next) {
             useStore.getState().focusSession(next.id);
+          }
+          return;
+        }
+
+        // Ctrl+Q: kill focused session
+        if (e.ctrlKey && e.key === "q") {
+          e.preventDefault();
+          e.stopPropagation();
+          if (focusedSessionId) {
+            useStore.getState().setKillConfirm(focusedSessionId);
           }
           return;
         }

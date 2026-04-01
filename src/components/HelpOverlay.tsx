@@ -21,22 +21,15 @@ export default function HelpOverlay() {
         <div className="grid grid-cols-2 gap-6">
           <section>
             <h3 className="text-[10px] font-bold uppercase text-cmux-text-muted mb-2 tracking-wider">
-              Global
-            </h3>
-            <div className="space-y-1.5">
-              <HelpRow keys="1-9" desc="Focus session N" />
-              <HelpRow keys="Tab" desc="Next needs-input session" />
-              <HelpRow keys="Ctrl+N" desc="New session" />
-            </div>
-          </section>
-
-          <section>
-            <h3 className="text-[10px] font-bold uppercase text-cmux-text-muted mb-2 tracking-wider">
               Overview Mode
             </h3>
             <div className="space-y-1.5">
+              <HelpRow keys="1-9" desc="Focus session N" />
+              <HelpRow keys="↑↓←→" desc="Select session" />
+              <HelpRow keys="Enter" desc="Focus selected session" />
+              <HelpRow keys="Tab" desc="Next needs-input session" />
               <HelpRow keys="n" desc="New session" />
-              <HelpRow keys="q" desc="Kill session" />
+              <HelpRow keys="q" desc="Kill selected session" />
               <HelpRow keys="?" desc="Toggle help" />
             </div>
           </section>
@@ -46,24 +39,38 @@ export default function HelpOverlay() {
               Focus Mode
             </h3>
             <div className="space-y-1.5">
-              <HelpRow keys="Esc" desc="Return to overview" />
+              <HelpRow keys="Esc Esc" desc="Return to overview" />
+              <HelpRow keys="Alt+1-9" desc="Switch to session N" />
+              <HelpRow keys="Alt+Tab" desc="Next needs-input session" />
+              <HelpRow keys="Ctrl+Q" desc="Kill session" />
               <HelpRow keys="Ctrl+P" desc="Open PR in browser" />
               <HelpRow keys="Ctrl+B" desc="Toggle side panel" />
+              <HelpRow keys="Ctrl+N" desc="New session" />
             </div>
           </section>
 
           <section>
             <h3 className="text-[10px] font-bold uppercase text-cmux-text-muted mb-2 tracking-wider">
-              New Session Modal
+              New Session
             </h3>
             <div className="space-y-1.5">
               <HelpRow keys="↑↓" desc="Navigate projects" />
-              <HelpRow keys="Enter" desc="Select / Launch" />
-              <HelpRow keys="+" desc="Add project" />
-              <HelpRow keys="e" desc="Edit branch name" />
-              <HelpRow keys="a" desc="Change agent type" />
+              <HelpRow keys="Enter" desc="Launch session" />
+              <HelpRow keys="/path" desc="Add & launch project" />
+              <HelpRow keys="Tab" desc="Edit branch" />
               <HelpRow keys="Esc" desc="Cancel" />
             </div>
+          </section>
+
+          <section>
+            <h3 className="text-[10px] font-bold uppercase text-cmux-text-muted mb-2 tracking-wider">
+              Design Principle
+            </h3>
+            <p className="text-[10px] text-cmux-text-secondary leading-relaxed">
+              In focus mode, all shortcuts use modifier keys
+              (Ctrl, Alt) so bare keystrokes pass through to
+              the terminal unintercepted.
+            </p>
           </section>
         </div>
 
