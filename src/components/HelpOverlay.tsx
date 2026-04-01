@@ -51,15 +51,14 @@ export default function HelpOverlay() {
 
           <section>
             <h3 className="text-[10px] font-bold uppercase text-cmux-text-muted mb-2 tracking-wider">
-              New Session Modal
+              New Session
             </h3>
             <div className="space-y-1.5">
               <HelpRow keys="↑↓" desc="Navigate projects" />
-              <HelpRow keys="Enter" desc="Select / Launch" />
-              <HelpRow keys="+" desc="Add project" />
-              <HelpRow keys="e" desc="Edit branch name" />
-              <HelpRow keys="a" desc="Change agent type" />
-              <HelpRow keys="Esc" desc="Cancel / Back" />
+              <HelpRow keys="Enter" desc="Launch session" />
+              <HelpRow keys="/path" desc="Add & launch project" />
+              <HelpRow keys="Tab" desc="Edit branch" />
+              <HelpRow keys="Esc" desc="Cancel" />
             </div>
           </section>
 
