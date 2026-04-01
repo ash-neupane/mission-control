@@ -3,6 +3,7 @@ import SessionCell from "./SessionCell";
 
 export default function Overview() {
   const sessions = useStore((s) => s.sessions);
+  const selectedOverviewIndex = useStore((s) => s.selectedOverviewIndex);
 
   const gridCols = getGridCols(sessions.length);
 
@@ -27,8 +28,12 @@ export default function Overview() {
         className={`grid gap-3 h-full ${gridCols}`}
         style={{ gridAutoRows: "1fr" }}
       >
-        {sessions.map((session) => (
-          <SessionCell key={session.id} session={session} />
+        {sessions.map((session, index) => (
+          <SessionCell
+            key={session.id}
+            session={session}
+            selected={index === selectedOverviewIndex}
+          />
         ))}
       </div>
     </div>

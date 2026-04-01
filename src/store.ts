@@ -15,6 +15,7 @@ interface AppState {
   showHelpOverlay: boolean;
   sidePanelVisible: boolean;
   killConfirmSessionId: string | null;
+  selectedOverviewIndex: number;
 
   // Data
   sessions: Session[];
@@ -30,6 +31,7 @@ interface AppState {
   toggleHelpOverlay: () => void;
   toggleSidePanel: () => void;
   setKillConfirm: (sessionId: string | null) => void;
+  moveOverviewSelection: (delta: number, count: number) => void;
 
   setSessions: (sessions: Session[]) => void;
   addSession: (session: Session) => void;
@@ -81,6 +83,7 @@ export const useStore = create<AppState>((set, get) => ({
   showHelpOverlay: false,
   sidePanelVisible: true,
   killConfirmSessionId: null,
+  selectedOverviewIndex: 0,
 
   sessions: [],
   projects: [],
@@ -106,6 +109,15 @@ export const useStore = create<AppState>((set, get) => ({
     set((s) => ({ sidePanelVisible: !s.sidePanelVisible })),
 
   setKillConfirm: (sessionId) => set({ killConfirmSessionId: sessionId }),
+
+  moveOverviewSelection: (delta, count) =>
+    set((s) => {
+      if (count === 0) return {};
+      let next = s.selectedOverviewIndex + delta;
+      // Clamp to valid range
+      next = Math.max(0, Math.min(next, count - 1));
+      return { selectedOverviewIndex: next };
+    }),
 
   setSessions: (sessions) => set({ sessions: sortSessions(sessions) }),
 

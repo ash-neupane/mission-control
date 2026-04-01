@@ -3,13 +3,17 @@ use crate::session::SessionStatus;
 /// Send an OS notification for a session status change.
 /// We use Tauri's notification plugin which is configured on the frontend side.
 /// This module provides the logic for when to notify.
+///
+/// Notifies on transitions INTO these actionable states:
+/// - NeedsInput / Stuck: session needs user attention
+/// - PrReady / Done: session completed its work
 pub fn should_notify(old_status: &SessionStatus, new_status: &SessionStatus) -> bool {
+    if old_status == new_status {
+        return false;
+    }
     matches!(
         new_status,
-        SessionStatus::NeedsInput | SessionStatus::Stuck
-    ) && !matches!(
-        old_status,
-        SessionStatus::NeedsInput | SessionStatus::Stuck
+        SessionStatus::NeedsInput | SessionStatus::Stuck | SessionStatus::PrReady | SessionStatus::Done
     )
 }
 
@@ -34,6 +38,7 @@ mod tests {
 
     #[test]
     fn test_should_notify() {
+        // Transitions into actionable states should notify
         assert!(should_notify(
             &SessionStatus::Working,
             &SessionStatus::NeedsInput
@@ -42,13 +47,28 @@ mod tests {
             &SessionStatus::Empty,
             &SessionStatus::Stuck
         ));
+        assert!(should_notify(
+            &SessionStatus::Working,
+            &SessionStatus::PrReady
+        ));
+        assert!(should_notify(
+            &SessionStatus::Working,
+            &SessionStatus::Done
+        ));
+        // Same status should not notify
+        assert!(!should_notify(
+            &SessionStatus::NeedsInput,
+            &SessionStatus::NeedsInput
+        ));
+        // Transitions between notifiable states should still notify (status changed)
+        assert!(should_notify(
+            &SessionStatus::Stuck,
+            &SessionStatus::NeedsInput
+        ));
+        // Transitions to non-actionable states should not notify
         assert!(!should_notify(
             &SessionStatus::NeedsInput,
             &SessionStatus::Working
-        ));
-        assert!(!should_notify(
-            &SessionStatus::Stuck,
-            &SessionStatus::NeedsInput
         ));
     }
 
@@ -88,13 +108,20 @@ mod tests {
             SessionStatus::Done,
         ];
 
-        // Exhaustively verify: only transitions INTO NeedsInput/Stuck
-        // from non-NeedsInput/non-Stuck states trigger notification
+        // Exhaustively verify: transitions INTO actionable states
+        // (NeedsInput, Stuck, PrReady, Done) trigger notification,
+        // except same-status transitions.
         for old in &statuses {
             for new in &statuses {
                 let result = should_notify(old, new);
-                let expect = matches!(new, SessionStatus::NeedsInput | SessionStatus::Stuck)
-                    && !matches!(old, SessionStatus::NeedsInput | SessionStatus::Stuck);
+                let expect = old != new
+                    && matches!(
+                        new,
+                        SessionStatus::NeedsInput
+                            | SessionStatus::Stuck
+                            | SessionStatus::PrReady
+                            | SessionStatus::Done
+                    );
                 assert_eq!(
                     result, expect,
                     "should_notify({old:?} → {new:?}) = {result}, expected {expect}"

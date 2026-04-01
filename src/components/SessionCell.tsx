@@ -6,9 +6,10 @@ import { useStore } from "../store";
 
 interface SessionCellProps {
   session: Session;
+  selected?: boolean;
 }
 
-export default function SessionCell({ session }: SessionCellProps) {
+export default function SessionCell({ session, selected = false }: SessionCellProps) {
   const focusSession = useStore((s) => s.focusSession);
   const color = statusColors[session.status];
   const label = statusLabels[session.status];
@@ -24,7 +25,7 @@ export default function SessionCell({ session }: SessionCellProps) {
 
   return (
     <div
-      className={`bg-cmux-surface rounded-lg overflow-hidden cursor-pointer hover:bg-opacity-80 transition-all ${statusBorderClass(session.status)}`}
+      className={`bg-cmux-surface rounded-lg overflow-hidden cursor-pointer hover:bg-opacity-80 transition-all ${statusBorderClass(session.status)} ${selected ? "ring-1 ring-cmux-text-muted" : ""}`}
       onClick={() => focusSession(session.id)}
     >
       {/* Header */}

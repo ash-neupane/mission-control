@@ -7,12 +7,12 @@ export default function StatusBar() {
     return (
       <div className="flex items-center h-6 px-3 bg-cmux-surface border-t border-cmux-border text-[10px] text-cmux-text-muted select-none">
         <div className="flex items-center gap-4">
-          <Hotkey keys="esc" label="overview" />
-          <Hotkey keys="1-9" label="switch" />
-          <Hotkey keys="tab" label="next needs-input" />
+          <Hotkey keys="esc esc" label="overview" />
+          <Hotkey keys="alt+1-9" label="switch" />
+          <Hotkey keys="alt+tab" label="next ask" />
+          <Hotkey keys="ctrl+q" label="kill" />
           <Hotkey keys="ctrl+p" label="open PR" />
-          <Hotkey keys="ctrl+b" label="toggle panel" />
-          <Hotkey keys="ctrl+n" label="new session" />
+          <Hotkey keys="ctrl+b" label="panel" />
         </div>
       </div>
     );
@@ -22,9 +22,11 @@ export default function StatusBar() {
     <div className="flex items-center h-6 px-3 bg-cmux-surface border-t border-cmux-border text-[10px] text-cmux-text-muted select-none">
       <div className="flex items-center gap-4">
         <Hotkey keys="1-9" label="focus" />
-        <Hotkey keys="n" label="new session" />
-        <Hotkey keys="tab" label="next needs-input" />
+        <Hotkey keys="arrows" label="select" />
+        <Hotkey keys="enter" label="open" />
+        <Hotkey keys="n" label="new" />
         <Hotkey keys="q" label="kill" />
+        <Hotkey keys="tab" label="next ask" />
         <Hotkey keys="?" label="help" />
       </div>
     </div>

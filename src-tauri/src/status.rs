@@ -603,9 +603,14 @@ mod tests {
             &SessionStatus::NeedsInput,
             &SessionStatus::NeedsInput
         ));
-        assert!(!should_notify(
+        // Done and PrReady now also trigger notifications
+        assert!(should_notify(
             &SessionStatus::Working,
             &SessionStatus::Done
+        ));
+        assert!(should_notify(
+            &SessionStatus::Working,
+            &SessionStatus::PrReady
         ));
     }
 
