@@ -43,8 +43,14 @@ export default function KillConfirmDialog() {
   if (!killConfirmSessionId || !session) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-cmux-surface border border-cmux-border rounded-lg w-[350px] p-4 shadow-2xl">
+    <div
+      className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+      onClick={() => setKillConfirm(null)}
+    >
+      <div
+        className="bg-cmux-surface border border-cmux-border rounded-lg w-[350px] p-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <h2 className="text-[13px] font-semibold text-cmux-text-primary mb-3">
           Kill Session {session.number}?
         </h2>

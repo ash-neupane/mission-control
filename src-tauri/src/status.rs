@@ -125,15 +125,9 @@ impl StatusDetector {
     }
 
     fn detect_status(&self, clean_text: &str) -> SessionStatus {
-        let last_lines: String = clean_text
-            .lines()
-            .rev()
-            .take(5)
-            .collect::<Vec<_>>()
-            .into_iter()
-            .rev()
-            .collect::<Vec<_>>()
-            .join("\n");
+        let all_lines: Vec<&str> = clean_text.lines().collect();
+        let start = all_lines.len().saturating_sub(5);
+        let last_lines = all_lines[start..].join("\n");
 
         // Check for allow/deny prompts
         if ALLOW_DENY_RE.is_match(&last_lines) {

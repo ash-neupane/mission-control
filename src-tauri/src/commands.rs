@@ -49,7 +49,7 @@ pub fn create_session(
     // Handle branch creation if auto_branch is enabled
     let branch = if cfg.auto_branch && agent_type != AgentType::Shell {
         let branch = branch_name
-            .unwrap_or_else(|| format!("{}session-{}", cfg.branch_prefix, number));
+            .unwrap_or_else(|| format!("{}session-{number}", cfg.branch_prefix));
         match git::create_new_branch(&project_path, &branch) {
             Ok(b) => Some(b),
             Err(e) => {
@@ -219,5 +219,5 @@ pub fn update_config(config: State<ConfigState>, new_config: Config) -> Result<(
 
 #[tauri::command]
 pub fn open_url(url: String) -> Result<(), String> {
-    open::that(&url).map_err(|e| format!("Failed to open URL: {}", e))
+    open::that(&url).map_err(|e| format!("Failed to open URL: {e}"))
 }

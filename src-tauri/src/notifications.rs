@@ -25,11 +25,11 @@ pub fn notification_body(session_name: &str, last_output: &str) -> String {
     } else {
         last_output.to_string()
     };
-    format!("{}: {}", session_name, truncated)
+    format!("{session_name}: {truncated}")
 }
 
 pub fn notification_title(session_number: u8) -> String {
-    format!("c-mux — Session {}", session_number)
+    format!("c-mux — Session {session_number}")
 }
 
 #[cfg(test)]

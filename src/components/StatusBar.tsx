@@ -13,6 +13,7 @@ export default function StatusBar() {
           <Hotkey keys="ctrl+q" label="kill" />
           <Hotkey keys="ctrl+p" label="open PR" />
           <Hotkey keys="ctrl+b" label="panel" />
+          <Hotkey keys="ctrl+/" label="help" />
         </div>
       </div>
     );

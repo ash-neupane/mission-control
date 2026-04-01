@@ -25,10 +25,11 @@ export default function SessionPill({
       title={`${session.number}: ${session.name}`}
     >
       <span
-        className="w-1.5 h-1.5 rounded-full"
+        className="w-1.5 h-1.5 rounded-full flex-shrink-0"
         style={{ backgroundColor: color }}
       />
       <span>{session.number}</span>
+      <span className="truncate max-w-[60px] text-[9px]">{session.name}</span>
     </button>
   );
 }

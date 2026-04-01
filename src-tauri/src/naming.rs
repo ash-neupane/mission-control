@@ -42,7 +42,7 @@ pub fn name_from_branch(branch: &str, branch_prefix: &str) -> Option<String> {
 
 /// Generate a fallback name from project name and session number.
 pub fn fallback_name(project_name: &str, session_number: u8) -> String {
-    format!("{}-{}", project_name, session_number)
+    format!("{project_name}-{session_number}")
 }
 
 #[cfg(test)]
