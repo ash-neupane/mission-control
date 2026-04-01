@@ -52,6 +52,18 @@ impl ProjectRegistry {
     }
 
     pub fn add_project(&mut self, path: &str) -> Result<RegisteredProject, String> {
+        // Expand ~ to home directory
+        let path = if path.starts_with("~/") || path == "~" {
+            if let Some(home) = dirs::home_dir() {
+                home.join(&path[2..]).to_string_lossy().to_string()
+            } else {
+                path.to_string()
+            }
+        } else {
+            path.to_string()
+        };
+        let path = path.as_str();
+
         // Verify directory exists
         if !PathBuf::from(path).is_dir() {
             return Err(format!("Directory does not exist: {}", path));

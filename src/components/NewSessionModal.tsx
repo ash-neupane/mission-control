@@ -193,9 +193,13 @@ export default function NewSessionModal() {
     <div
       className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 outline-none"
       onKeyDown={handleKeyDown}
+      onClick={closeNewSessionModal}
       tabIndex={-1}
     >
-      <div className="bg-cmux-surface border border-cmux-border rounded-lg w-[420px] max-h-[520px] overflow-hidden shadow-2xl">
+      <div
+        className="bg-cmux-surface border border-cmux-border rounded-lg w-[420px] max-h-[520px] overflow-hidden shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header + search */}
         <div className="p-4 pb-3 border-b border-cmux-border">
           <h2 className="text-[13px] font-semibold text-cmux-text-primary mb-3">
