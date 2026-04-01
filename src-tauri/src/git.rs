@@ -6,7 +6,7 @@ pub fn current_branch(project_path: &str) -> Result<String, String> {
         .args(["branch", "--show-current"])
         .current_dir(project_path)
         .output()
-        .map_err(|e| format!("Failed to run git: {}", e))?;
+        .map_err(|e| format!("Failed to run git: {e}"))?;
 
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string());
@@ -22,7 +22,7 @@ pub fn create_new_branch(project_path: &str, branch_name: &str) -> Result<String
         .args(["status", "--porcelain"])
         .current_dir(project_path)
         .output()
-        .map_err(|e| format!("Failed to run git status: {}", e))?;
+        .map_err(|e| format!("Failed to run git status: {e}"))?;
 
     let is_dirty = !String::from_utf8_lossy(&status_output.stdout)
         .trim()
@@ -40,7 +40,7 @@ pub fn create_new_branch(project_path: &str, branch_name: &str) -> Result<String
         .args(["checkout", "-b", branch_name])
         .current_dir(project_path)
         .output()
-        .map_err(|e| format!("Failed to create branch: {}", e))?;
+        .map_err(|e| format!("Failed to create branch: {e}"))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
@@ -50,7 +50,7 @@ pub fn create_new_branch(project_path: &str, branch_name: &str) -> Result<String
                 .args(["checkout", branch_name])
                 .current_dir(project_path)
                 .output()
-                .map_err(|e| format!("Failed to checkout branch: {}", e))?;
+                .map_err(|e| format!("Failed to checkout branch: {e}"))?;
 
             if !output.status.success() {
                 return Err(String::from_utf8_lossy(&output.stderr).to_string());

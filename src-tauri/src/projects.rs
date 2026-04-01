@@ -46,8 +46,8 @@ impl ProjectRegistry {
     pub fn save(&self) -> Result<(), String> {
         let path = Self::config_path();
         let data = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("Failed to serialize: {}", e))?;
-        fs::write(path, data).map_err(|e| format!("Failed to write: {}", e))?;
+            .map_err(|e| format!("Failed to serialize: {e}"))?;
+        fs::write(path, data).map_err(|e| format!("Failed to write: {e}"))?;
         Ok(())
     }
 
@@ -66,7 +66,7 @@ impl ProjectRegistry {
 
         // Verify directory exists
         if !PathBuf::from(path).is_dir() {
-            return Err(format!("Directory does not exist: {}", path));
+            return Err(format!("Directory does not exist: {path}"));
         }
 
         // Check for duplicates
@@ -163,8 +163,8 @@ impl Config {
     pub fn save(&self) -> Result<(), String> {
         let path = Self::config_path();
         let data = serde_json::to_string_pretty(self)
-            .map_err(|e| format!("Failed to serialize: {}", e))?;
-        fs::write(path, data).map_err(|e| format!("Failed to write: {}", e))?;
+            .map_err(|e| format!("Failed to serialize: {e}"))?;
+        fs::write(path, data).map_err(|e| format!("Failed to write: {e}"))?;
         Ok(())
     }
 

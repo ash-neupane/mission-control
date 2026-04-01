@@ -197,6 +197,14 @@ export function useHotkeys() {
           return;
         }
 
+        // Ctrl+/: toggle help overlay
+        if (e.ctrlKey && e.key === "/") {
+          e.preventDefault();
+          e.stopPropagation();
+          useStore.getState().toggleHelpOverlay();
+          return;
+        }
+
         // All other keys: pass through to terminal (don't prevent default)
       }
     };

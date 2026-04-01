@@ -46,6 +46,7 @@ export default function HelpOverlay() {
               <HelpRow keys="Ctrl+P" desc="Open PR in browser" />
               <HelpRow keys="Ctrl+B" desc="Toggle side panel" />
               <HelpRow keys="Ctrl+N" desc="New session" />
+              <HelpRow keys="Ctrl+/" desc="This help" />
             </div>
           </section>
 

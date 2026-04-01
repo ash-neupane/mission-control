@@ -146,7 +146,7 @@ mod tests {
         Session {
             id: id.to_string(),
             number,
-            name: format!("session-{}", number),
+            name: format!("session-{number}"),
             project_path: "/tmp/test".to_string(),
             project_name: "test".to_string(),
             working_dir: "/tmp/test".to_string(),
@@ -173,7 +173,7 @@ mod tests {
         // Fill all 9 slots
         for i in 3..=9 {
             manager.add_session(make_session(
-                &format!("s{}", i),
+                &format!("s{i}"),
                 i,
                 SessionStatus::Working,
             ));
@@ -305,7 +305,7 @@ mod tests {
         let mut manager = SessionManager::new();
         for i in 1..=9 {
             manager.add_session(make_session(
-                &format!("s{}", i),
+                &format!("s{i}"),
                 i,
                 SessionStatus::Working,
             ));
@@ -318,7 +318,7 @@ mod tests {
 
         // Remove all
         for i in 1..=9 {
-            manager.remove_session(&format!("s{}", i));
+            manager.remove_session(&format!("s{i}"));
         }
         assert_eq!(manager.next_available_number(), Some(1));
     }
